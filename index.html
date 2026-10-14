@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Curriculum Builder</title>
+<style>
+  /* ---------- tokens ---------- */
+  :root{
+    --paper:#FAFAF5;
+    --grid:rgba(96,115,140,.13);
+    --ink:#212A33;
+    --ink-soft:#5C6873;
+    --ink-faint:#8B95A0;
+    --margin-rule:#3E4C8A;      /* dusty indigo */
+    --rule:rgba(33,42,51,.16);  /* horizontal ruled lines */
+    --q1:#5B7FA6; --q2:#5E8C61; --q3:#C08A3E; --q4:#9A5B4F;
+    --paper-raise:#FFFFFF;
+    --danger:#8C3B33;
+    --focus:#2F5FD0;
+    --tab-h:38px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 27px, var(--grid) 27px 28px),
+      repeating-linear-gradient(to right, transparent 0 27px, var(--grid) 27px 28px),
+      var(--paper);
+    font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  }
+  .serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  h1,h2,h3{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-weight:600;margin:0}
+  button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+  input,select,textarea{font:inherit;color:var(--ink)}
+  a{color:var(--margin-rule)}
+  :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---------- page frame ---------- */
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 20px 80px}
+  header.masthead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;margin:2px 0 20px;padding-left:14px}
+  header.masthead h1{font-size:30px;letter-spacing:.2px}
+  .year-line{color:var(--ink-soft);font-size:15px}
+  .year-line strong{color:var(--ink);font-weight:600}
+  .masthead .spacer{flex:1}
+  .print-btn{border:1px solid var(--rule);background:var(--paper-raise);padding:7px 14px;border-radius:3px;color:var(--ink-soft)}
+  .print-btn:hover{color:var(--ink);border-color:var(--ink-soft)}
+
+  /* ---------- index tabs ---------- */
+  .tabs{display:flex;gap:6px;padding-left:14px;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{
+    position:relative;height:var(--tab-h);padding:0 18px 0 14px;
+    background:#F1F1E9;border:1px solid var(--rule);border-bottom:none;
+    border-radius:7px 7px 0 0;color:var(--ink-soft);white-space:nowrap;
+    display:flex;align-items:center;gap:8px;font-size:15px;
+    transform:translateY(4px);transition:transform .12s ease;
+  }
+  .tab .notch{width:9px;height:9px;border-radius:50%;background:var(--nc,var(--ink-faint));flex:none}
+  .tab[aria-selected="true"]{
+    background:var(--paper-raise);color:var(--ink);transform:translateY(0);
+    box-shadow:0 -2px 4px rgba(33,42,51,.05);z-index:2;font-weight:600;
+  }
+  .tab:hover{transform:translateY(1px)}
+  .tab[aria-selected="true"]:hover{transform:translateY(0)}
+
+  /* ---------- the notebook page ---------- */
+  .page{
+    position:relative;background:var(--paper-raise);
+    border:1px solid var(--rule);border-radius:0 4px 4px 4px;
+    box-shadow:0 2px 10px rgba(33,42,51,.07);
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;
+    min-height:420px;
+  }
+  .page::before{ /* margin rule */
+    content:"";position:absolute;top:0;bottom:0;left:46px;width:2px;
+    background:var(--margin-rule);opacity:.55;pointer-events:none;
+  }
+  .page-main{padding:26px 28px 34px 66px;min-width:0}
+  .page-rail{border-left:1px solid var(--rule);padding:24px 20px 30px;background:#FCFCF8;border-radius:0 4px 4px 0}
+  @media (max-width:900px){
+    .page{grid-template-columns:1fr}
+    .page-rail{border-left:none;border-top:1px dashed var(--rule);border-radius:0 0 4px 4px}
+    .page-main{padding-left:58px;padding-right:20px}
+    .page::before{left:38px}
+  }
+  @media (max-width:520px){
+    .wrap{padding:16px 10px 60px}
+    .page-main{padding:20px 14px 26px 44px}
+    .page::before{left:28px}
+    header.masthead h1{font-size:24px}
+  }
+
+  /* quarter heading with editable label */
+  .q-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .q-head h2{font-size:24px;display:flex;align-items:center;gap:10px}
+  .q-head .notch{width:11px;height:11px;border-radius:50%;background:var(--nc)}
+  .q-rename{border:none;background:transparent;border-bottom:1px dashed transparent;font-family:inherit;font-size:24px;font-weight:600;color:var(--ink);width:12ch;padding:0}
+  .q-rename:hover,.q-rename:focus{border-bottom-color:var(--ink-faint);outline:none}
+  .q-sub{color:var(--ink-faint);font-size:13.5px;margin-bottom:20px}
+
+  /* ---------- interest groups & item rows ---------- */
+  .group{margin-bottom:26px}
+  .group-head{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--ic);padding-bottom:4px;margin-bottom:2px}
+  .group-head h3{font-size:18.5px}
+  .group-head .dot{width:10px;height:10px;border-radius:50%;background:var(--ic);align-self:center;flex:none}
+  .group-head .count{color:var(--ink-faint);font-size:13px;margin-left:auto}
+  .item{
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start;
+    padding:10px 2px 9px;border-bottom:1px solid var(--rule);
+  }
+  .item:last-of-type{border-bottom:none}
+  .item .title{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:17px;line-height:1.35}
+  .item.done .title{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:rgba(33,42,51,.35);text-decoration-thickness:1px}
+  .item .why{grid-column:2;color:var(--ink-soft);font-size:14px;line-height:1.45}
+  .item .res{grid-column:2;font-size:13.5px;word-break:break-word}
+  .item .res .plain{color:var(--ink-soft)}
+  .ex-badge{display:inline-block;font-size:11.5px;color:#7A5A16;background:#F6EBCB;border:1px solid #E4D3A0;border-radius:3px;padding:0 6px;margin-left:8px;vertical-align:2px}
+  .item-actions{display:flex;gap:2px;opacity:.35;transition:opacity .12s}
+  .item:hover .item-actions,.item:focus-within .item-actions{opacity:1}
+  .icon-btn{padding:3px 6px;color:var(--ink-soft);border-radius:3px;font-size:13px}
+  .icon-btn:hover{background:#EFEFE7;color:var(--ink)}
+  .icon-btn.danger:hover{color:var(--danger)}
+
+  /* status control: a three-step "checkbox" */
+  .status{
+    width:20px;height:20px;margin-top:3px;border:2px solid var(--ink-soft);border-radius:3px;
+    flex:none;position:relative;background:var(--paper-raise);
+  }
+  .status:hover{border-color:var(--ink)}
+  .status[data-s="prog"]{border-color:var(--ic,var(--margin-rule))}
+  .status[data-s="prog"]::after{content:"";position:absolute;inset:3px;background:var(--ic,var(--margin-rule));opacity:.45;border-radius:1px}
+  .status[data-s="done"]{border-color:var(--ic,var(--margin-rule));background:var(--ic,var(--margin-rule))}
+  .status[data-s="done"]::after{content:"✓";position:absolute;inset:0;color:#fff;font-size:14px;line-height:17px;text-align:center}
+  .status-word{font-size:12px;color:var(--ink-faint);grid-column:1;text-align:center;display:none}
+
+  .add-line{margin-top:6px}
+  .add-line button{color:var(--ink-faint);font-size:14px;padding:3px 0}
+  .add-line button:hover{color:var(--margin-rule)}
+
+  /* inline forms */
+  form.inline{
+    grid-column:1 / -1;display:grid;gap:8px;background:#F7F8F2;border:1px dashed var(--rule);
+    border-radius:4px;padding:12px;margin:8px 0;
+  }
+  form.inline input[type=text],form.inline input[type=url],form.inline select{
+    border:1px solid var(--rule);border-radius:3px;padding:7px 9px;background:#fff;width:100%;
+  }
+  form.inline .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  form.inline .row > *{flex:1;min-width:120px}
+  form.inline .btns{display:flex;gap:10px;justify-content:flex-end}
+  form.inline .btns .save{background:var(--margin-rule);color:#fff;border-radius:3px;padding:7px 16px}
+  form.inline .btns .cancel{color:var(--ink-soft);padding:7px 8px}
+  form.inline label{font-size:12.5px;color:var(--ink-soft);display:block;margin-bottom:3px}
+
+  /* ---------- rail: up next, stats, interests ---------- */
+  .rail-block{margin-bottom:26px}
+  .rail-block h3{font-size:16px;margin-bottom:10px}
+  .upnext{
+    background:#FFFDF4;border:1px solid #E8E2C8;border-radius:2px;padding:14px 14px 12px;
+    box-shadow:1px 2px 5px rgba(33,42,51,.08);transform:rotate(-.5deg);position:relative;
+  }
+  .upnext::before{ /* tape */
+    content:"";position:absolute;top:-9px;left:50%;width:74px;height:18px;transform:translateX(-50%) rotate(1.5deg);
+    background:rgba(140,150,160,.22);border-left:1px solid rgba(140,150,160,.25);border-right:1px solid rgba(140,150,160,.25);
+  }
+  .upnext ol{margin:0;padding-left:20px;font-size:14.5px}
+  .upnext li{margin-bottom:8px;line-height:1.4}
+  .upnext li:last-child{margin-bottom:0}
+  .upnext .u-int{font-size:12px;color:var(--ink-soft)}
+  .upnext .u-int::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ic);margin-right:5px}
+  .upnext .u-prog{font-size:11.5px;color:#7A5A16}
+  .upnext .empty{color:var(--ink-soft);font-size:14px;font-style:italic}
+
+  .stat-line{font-size:14px;color:var(--ink-soft);margin-bottom:10px}
+  .stat-line strong{color:var(--ink);font-size:17px;font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .int-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--rule);font-size:14px}
+  .int-row:last-of-type{border-bottom:none}
+  .int-row .dot{width:11px;height:11px;border-radius:50%;background:var(--ic);flex:none;border:1px solid rgba(0,0,0,.12)}
+  .int-row .name-btn{text-align:left;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
+  .int-row .name-btn:hover{color:var(--margin-rule)}
+  .int-row .pct{color:var(--ink-faint);font-size:12.5px;white-space:nowrap}
+  .bar{height:4px;background:#ECEDE5;border-radius:2px;overflow:hidden;margin:2px 0 4px}
+  .bar i{display:block;height:100%;background:var(--ic);transition:width .25s ease}
+  .int-edit{display:grid;gap:8px;background:#F7F8F2;border:1px dashed var(--rule);border-radius:4px;padding:10px;margin:6px 0}
+  .int-edit .row{display:flex;gap:8px;align-items:center}
+  .int-edit input[type=text]{flex:1;border:1px solid var(--rule);border-radius:3px;padding:6px 8px;min-width:0}
+  .int-edit input[type=color]{width:38px;height:32px;border:1px solid var(--rule);border-radius:3px;padding:2px;background:#fff}
+  .int-edit .btns{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .int-edit .save{background:var(--margin-rule);color:#fff;border-radius:3px;padding:5px 12px;font-size:14px}
+  .int-edit .cancel{color:var(--ink-soft);font-size:14px}
+  .int-edit .del{color:var(--danger);font-size:13px;margin-right:auto}
+  .add-int-btn{color:var(--ink-faint);font-size:14px;margin-top:8px}
+  .add-int-btn:hover{color:var(--margin-rule)}
+  .storage-warn{display:none;background:#F9E9E7;border:1px solid #E0B7B1;color:#6E2C25;border-radius:3px;padding:8px 10px;font-size:13px;margin-bottom:14px}
+  .storage-warn.show{display:block}
+
+  /* ---------- year at a glance ---------- */
+  .year-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+  @media (max-width:900px){.year-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:520px){.year-grid{grid-template-columns:1fr}}
+  .yq{border:1px solid var(--rule);border-top:3px solid var(--nc);border-radius:3px;padding:12px 12px 10px;background:#FDFDF9;text-align:left}
+  .yq:hover{border-color:var(--ink-faint);border-top-color:var(--nc)}
+  .yq h3{font-size:16.5px;display:flex;align-items:baseline;gap:8px}
+  .yq h3 .qc{margin-left:auto;font-size:12.5px;color:var(--ink-faint);font-family:system-ui,sans-serif;font-weight:400}
+  .yq .yint{margin-top:9px}
+  .yq .yint .lbl{font-size:12.5px;color:var(--ink-soft);display:flex;gap:6px;align-items:center}
+  .yq .yint .lbl .dot{width:8px;height:8px;border-radius:50%;background:var(--ic)}
+  .yq .yint .lbl .n{margin-left:auto;color:var(--ink-faint);font-size:11.5px}
+  .sq-strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+  .sq{width:10px;height:10px;border-radius:2px;background:var(--ic);opacity:.22}
+  .sq.prog{opacity:.55}
+  .sq.done{opacity:1}
+  .yq .none{color:var(--ink-faint);font-size:12.5px;font-style:italic;margin-top:8px}
+  .year-note{color:var(--ink-faint);font-size:13px;margin-top:16px}
+
+  /* ---------- print ---------- */
+  #printView{display:none}
+  @media print{
+    body{background:#fff}
+    .wrap>*:not(#printView){display:none!important}
+    #printView{display:block;font-size:12px;color:#000}
+    #printView h1{font-size:20px;margin-bottom:2px}
+    #printView .p-sub{color:#444;margin-bottom:14px}
+    #printView h2{font-size:15px;border-bottom:2px solid #000;margin:14px 0 4px;padding-bottom:2px}
+    #printView h3{font-size:13px;margin:8px 0 2px}
+    #printView table{width:100%;border-collapse:collapse}
+    #printView td{padding:3px 6px 3px 0;vertical-align:top;border-bottom:1px solid #ddd}
+    #printView td.st{width:82px;white-space:nowrap;color:#333}
+    #printView .why{color:#555}
+    #printView .res{color:#555;font-style:italic}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <h1>Personal curriculum</h1>
+    <span class="year-line">a year of deliberate learning — <strong id="hdrStats">0 items</strong></span>
+    <span class="spacer"></span>
+    <button class="print-btn" id="printBtn" type="button">Print year summary</button>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <div class="page">
+    <main class="page-main" id="main"></main>
+    <aside class="page-rail" id="rail"></aside>
+  </div>
+
+  <section id="printView" aria-hidden="true"></section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var LS_KEY = "pcb-data-v1";
+var STATUSES = ["not","prog","done"];
+var STATUS_LABEL = {not:"Not started", prog:"In progress", done:"Done"};
+
+/* ---------------- state ---------------- */
+function uid(){ return "id" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function seedState(){
+  var gi = uid(), wi = uid();
+  return {
+    v:1,
+    view: defaultQuarter(),
+    quarters:[
+      {id:"q1", label:"Q1"},
+      {id:"q2", label:"Q2"},
+      {id:"q3", label:"Q3"},
+      {id:"q4", label:"Q4"}
+    ],
+    interests:[
+      {id:gi, name:"Gardening", color:"#5E8C61"},
+      {id:wi, name:"Writing",   color:"#3E4C8A"}
+    ],
+    items:[
+      {id:uid(), interestId:gi, quarterId:"q1", title:"Example: a skill to learn this quarter",
+       why:"One line on why this matters to you right now.", status:"not", resource:"", example:true},
+      {id:uid(), interestId:gi, quarterId:"q1", title:"Example: a small project to finish",
+       why:"Replace me with something real, or delete me.", status:"prog", resource:"", example:true},
+      {id:uid(), interestId:wi, quarterId:"q1", title:"Example: a book to read",
+       why:"The note field is for your own reasoning, not a description.", status:"not",
+       resource:"https://example.com — a link or plain reference text", example:true},
+      {id:uid(), interestId:wi, quarterId:"q2", title:"Example: a technique to practice",
+       why:"Items can live in any quarter — this one is parked in the next.", status:"not", resource:"", example:true}
+    ]
+  };
+}
+function defaultQuarter(){
+  var m = new Date().getMonth(); // 0-11
+  return "q" + (Math.floor(m/3)+1);
+}
+
+var storageOK = true;
+function load(){
+  try{
+    var raw = localStorage.getItem(LS_KEY);
+    if(!raw) return seedState();
+    var s = JSON.parse(raw);
+    if(!s || !s.quarters || !s.interests || !s.items) return seedState();
+    if(!s.view) s.view = defaultQuarter();
+    return s;
+  }catch(e){ storageOK = false; return seedState(); }
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); storageOK = true; }
+  catch(e){ storageOK = false; }
+}
+var state = load();
+
+/* ---------------- mutations (exposed for testing) ---------------- */
+function addInterest(name, color){
+  name = (name||"").trim(); if(!name) return null;
+  var it = {id:uid(), name:name, color:color||"#3E4C8A"};
+  state.interests.push(it); save(); render(); return it.id;
+}
+function updateInterest(id, patch){
+  var it = state.interests.find(function(x){return x.id===id}); if(!it) return false;
+  if(patch.name !== undefined){ var n=(patch.name||"").trim(); if(n) it.name = n; }
+  if(patch.color !== undefined) it.color = patch.color;
+  save(); render(); return true;
+}
+function deleteInterest(id){
+  var i = state.interests.findIndex(function(x){return x.id===id}); if(i<0) return false;
+  state.interests.splice(i,1);
+  state.items = state.items.filter(function(x){return x.interestId!==id});
+  save(); render(); return true;
+}
+function addItem(o){
+  var t=(o.title||"").trim(); if(!t) return null;
+  if(!state.interests.some(function(x){return x.id===o.interestId})) return null;
+  if(!state.quarters.some(function(q){return q.id===o.quarterId})) return null;
+  var it = {id:uid(), interestId:o.interestId, quarterId:o.quarterId, title:t,
+            why:(o.why||"").trim(), status: STATUSES.indexOf(o.status)>=0?o.status:"not",
+            resource:(o.resource||"").trim(), example:false};
+  state.items.push(it); save(); render(); return it.id;
+}
+function updateItem(id, patch){
+  var it = state.items.find(function(x){return x.id===id}); if(!it) return false;
+  if(patch.title !== undefined){ var t=(patch.title||"").trim(); if(t) it.title=t; }
+  if(patch.why !== undefined) it.why = (patch.why||"").trim();
+  if(patch.resource !== undefined) it.resource = (patch.resource||"").trim();
+  if(patch.status !== undefined && STATUSES.indexOf(patch.status)>=0) it.status = patch.status;
+  if(patch.quarterId !== undefined && state.quarters.some(function(q){return q.id===patch.quarterId})) it.quarterId = patch.quarterId;
+  if(patch.interestId !== undefined && state.interests.some(function(x){return x.id===patch.interestId})) it.interestId = patch.interestId;
+  if(patch.title !== undefined || patch.why !== undefined) it.example = false; // once edited, no longer an example
+  save(); render(); return true;
+}
+function deleteItem(id){
+  var i = state.items.findIndex(function(x){return x.id===id}); if(i<0) return false;
+  state.items.splice(i,1); save(); render(); return true;
+}
+function cycleStatus(id){
+  var it = state.items.find(function(x){return x.id===id}); if(!it) return false;
+  it.status = STATUSES[(STATUSES.indexOf(it.status)+1)%3];
+  save(); render(); return it.status;
+}
+function setQuarterLabel(qid, label){
+  var q = state.quarters.find(function(x){return x.id===qid}); if(!q) return false;
+  label = (label||"").trim(); if(label) q.label = label;
+  save(); render(); return true;
+}
+function setView(v){ state.view = v; save(); render(); }
+
+/* ---------------- derived ---------------- */
+function itemsFor(qid, iid){
+  return state.items.filter(function(x){return x.quarterId===qid && x.interestId===iid});
+}
+function statsAll(){
+  var t = state.items.length, d = state.items.filter(function(x){return x.status==="done"}).length;
+  return {total:t, done:d, pct: t? Math.round(d/t*100) : 0};
+}
+function statsInterest(iid){
+  var arr = state.items.filter(function(x){return x.interestId===iid});
+  var d = arr.filter(function(x){return x.status==="done"}).length;
+  return {total:arr.length, done:d, pct: arr.length? Math.round(d/arr.length*100):0};
+}
+function statsQuarter(qid){
+  var arr = state.items.filter(function(x){return x.quarterId===qid});
+  var d = arr.filter(function(x){return x.status==="done"}).length;
+  return {total:arr.length, done:d};
+}
+function upNext(qid, n){
+  var open = state.items.filter(function(x){return x.quarterId===qid && x.status!=="done"});
+  open.sort(function(a,b){
+    if(a.status!==b.status) return a.status==="prog" ? -1 : 1; // in-progress first
+    return 0;
+  });
+  return open.slice(0, n||5);
+}
+
+/* ---------------- rendering ---------------- */
+var openForms = {}; // remember which inline form is open across renders: key -> data
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function el(tag, attrs, kids){
+  var e = document.createElement(tag);
+  if(attrs) for(var k in attrs){
+    if(k==="text") e.textContent = attrs[k];
+    else if(k==="html") e.innerHTML = attrs[k];
+    else if(k.slice(0,2)==="on") e.addEventListener(k.slice(2), attrs[k]);
+    else if(k==="style") e.setAttribute("style", attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  (kids||[]).forEach(function(c){ if(c) e.appendChild(c); });
+  return e;
+}
+var QCOLOR = {q1:"var(--q1)", q2:"var(--q2)", q3:"var(--q3)", q4:"var(--q4)"};
+
+function render(){
+  renderTabs();
+  var main = document.getElementById("main");
+  main.innerHTML = "";
+  if(state.view === "year") renderYear(main); else renderQuarter(main, state.view);
+  renderRail();
+  renderPrint();
+  var s = statsAll();
+  document.getElementById("hdrStats").textContent =
+    s.total + (s.total===1?" item":" items") + ", " + s.pct + "% done";
+}
+
+function renderTabs(){
+  var t = document.getElementById("tabs"); t.innerHTML = "";
+  state.quarters.forEach(function(q){
+    var st = statsQuarter(q.id);
+    t.appendChild(el("button",{class:"tab",role:"tab","aria-selected":String(state.view===q.id),
+      style:"--nc:"+QCOLOR[q.id], type:"button", onclick:function(){ setView(q.id); }},
+      [ el("span",{class:"notch"}), el("span",{text:q.label}),
+        st.total? el("span",{class:"tab-count",text:st.done+"/"+st.total, style:"font-size:12px;color:var(--ink-faint)"}):null ]));
+  });
+  t.appendChild(el("button",{class:"tab",role:"tab","aria-selected":String(state.view==="year"),
+    style:"--nc:var(--margin-rule)", type:"button", onclick:function(){ setView("year"); }},
+    [ el("span",{class:"notch"}), el("span",{text:"Year at a glance"}) ]));
+}
+
+function renderQuarter(main, qid){
+  var q = state.quarters.find(function(x){return x.id===qid}) || state.quarters[0];
+  qid = q.id;
+  var head = el("div",{class:"q-head"},[
+    el("h2",{},[
+      el("span",{class:"notch", style:"--nc:"+QCOLOR[qid]+";background:"+QCOLOR[qid].replace("var(","var(")}),
+      el("input",{class:"q-rename",type:"text",value:q.label,"aria-label":"Rename this quarter",
+        onchange:function(ev){ setQuarterLabel(qid, ev.target.value); },
+        onkeydown:function(ev){ if(ev.key==="Enter") ev.target.blur(); }})
+    ])
+  ]);
+  main.appendChild(head);
+  main.appendChild(el("p",{class:"q-sub",text:"Click the quarter name to rename it — call it \u201CWinter\u201D or \u201CJan\u2013Mar\u201D if you like. Click a checkbox to step an item through not started \u2192 in progress \u2192 done."}));
+
+  if(state.interests.length===0){
+    main.appendChild(el("p",{class:"q-sub",text:"No interests yet. Add one in the Interests panel to start filling this quarter."}));
+    return;
+  }
+  state.interests.forEach(function(intr){
+    var items = itemsFor(qid, intr.id);
+    var g = el("section",{class:"group", style:"--ic:"+intr.color});
+    g.appendChild(el("div",{class:"group-head"},[
+      el("span",{class:"dot"}),
+      el("h3",{text:intr.name}),
+      el("span",{class:"count",text: items.length? items.filter(function(x){return x.status==="done"}).length+" of "+items.length+" done" : ""})
+    ]));
+    items.forEach(function(it){ g.appendChild(renderItem(it, intr)); });
+
+    var addKey = "add:"+qid+":"+intr.id;
+    if(openForms[addKey]){
+      g.appendChild(itemForm(null, intr, qid, addKey));
+    } else {
+      g.appendChild(el("div",{class:"add-line"},[
+        el("button",{type:"button","data-add":intr.id,text:"+ Add a focus item to "+intr.name,
+          onclick:function(){ openForms[addKey]=true; render(); }})
+      ]));
+    }
+    main.appendChild(g);
+  });
+}
+
+function renderItem(it, intr){
+  var editKey = "edit:"+it.id;
+  if(openForms[editKey]){
+    var wrapEl = el("div",{class:"item", style:"--ic:"+intr.color});
+    wrapEl.appendChild(itemForm(it, intr, it.quarterId, editKey));
+    return wrapEl;
+  }
+  var row = el("div",{class:"item"+(it.status==="done"?" done":""), style:"--ic:"+intr.color, "data-item":it.id});
+  row.appendChild(el("button",{class:"status",type:"button","data-s":it.status,
+    "aria-label":"Status: "+STATUS_LABEL[it.status]+". Click to change.",
+    title:STATUS_LABEL[it.status],
+    onclick:function(){ cycleStatus(it.id); }}));
+  var titleWrap = el("div",{},[ el("span",{class:"title",text:it.title}) ]);
+  if(it.example) titleWrap.appendChild(el("span",{class:"ex-badge",text:"example — replace or delete"}));
+  if(it.status==="prog") titleWrap.appendChild(el("span",{style:"font-size:12px;color:#7A5A16;margin-left:8px",text:"in progress"}));
+  row.appendChild(titleWrap);
+  row.appendChild(el("div",{class:"item-actions"},[
+    el("button",{class:"icon-btn",type:"button",text:"Edit","aria-label":"Edit "+it.title,
+      onclick:function(){ openForms[editKey]=true; render(); }}),
+    el("button",{class:"icon-btn danger",type:"button",text:"Delete","aria-label":"Delete "+it.title,
+      onclick:function(){ if(confirm("Delete \u201C"+it.title+"\u201D?")) deleteItem(it.id); }})
+  ]));
+  if(it.why) row.appendChild(el("div",{class:"why",text:it.why}));
+  if(it.resource){
+    var res = el("div",{class:"res"});
+    if(/^https?:\/\/\S+$/i.test(it.resource)){
+      res.appendChild(el("a",{href:it.resource,target:"_blank",rel:"noopener",text:it.resource}));
+    } else res.appendChild(el("span",{class:"plain",text:it.resource}));
+    row.appendChild(res);
+  }
+  return row;
+}
+
+function itemForm(it, intr, qid, key){
+  var f = el("form",{class:"inline"});
+  function fld(label, input){ var w=el("div",{},[el("label",{text:label}),input]); return w; }
+  var ti = el("input",{type:"text",name:"title",value:it?it.title:"",placeholder:"A skill, book, technique, or project", required:"required"});
+  var wi = el("input",{type:"text",name:"why",value:it?it.why:"",placeholder:"Why it matters to you"});
+  var ri = el("input",{type:"text",name:"resource",value:it?it.resource:"",placeholder:"Link or reference (optional)"});
+  var si = el("select",{name:"status"});
+  STATUSES.forEach(function(s){
+    var o = el("option",{value:s,text:STATUS_LABEL[s]});
+    if(it && it.status===s) o.selected = true;
+    si.appendChild(o);
+  });
+  var qi = el("select",{name:"quarter"});
+  state.quarters.forEach(function(q){
+    var o = el("option",{value:q.id,text:q.label});
+    if(q.id===qid) o.selected = true;
+    qi.appendChild(o);
+  });
+  f.appendChild(fld("Focus item", ti));
+  var r1 = el("div",{class:"row"},[ fld("Why it matters", wi) ]);
+  f.appendChild(r1);
+  f.appendChild(el("div",{class:"row"},[ fld("Resource", ri), fld("Status", si), fld("Quarter", qi) ]));
+  f.appendChild(el("div",{class:"btns"},[
+    el("button",{class:"cancel",type:"button",text:"Cancel",onclick:function(){ delete openForms[key]; render(); }}),
+    el("button",{class:"save",type:"submit",text: it? "Save changes" : "Add item"})
+  ]));
+  f.addEventListener("submit",function(ev){
+    ev.preventDefault();
+    delete openForms[key];
+    if(it){
+      updateItem(it.id,{title:ti.value, why:wi.value, resource:ri.value, status:si.value, quarterId:qi.value});
+    } else {
+      addItem({interestId:intr.id, quarterId:qi.value, title:ti.value, why:wi.value, resource:ri.value, status:si.value});
+    }
+  });
+  setTimeout(function(){ try{ti.focus();}catch(e){} },0);
+  return f;
+}
+
+function renderYear(main){
+  main.appendChild(el("div",{class:"q-head"},[ el("h2",{text:"Year at a glance"}) ]));
+  main.appendChild(el("p",{class:"q-sub",text:"Each square is one focus item — faint means not started, half-tone in progress, solid done. Click a quarter to open it."}));
+  var grid = el("div",{class:"year-grid"});
+  state.quarters.forEach(function(q){
+    var st = statsQuarter(q.id);
+    var card = el("button",{class:"yq",type:"button",style:"--nc:"+QCOLOR[q.id],
+      onclick:function(){ setView(q.id); }},[
+      el("h3",{},[ el("span",{text:q.label}), el("span",{class:"qc",text: st.total? st.done+" of "+st.total+" done" : ""}) ])
+    ]);
+    var any=false;
+    state.interests.forEach(function(intr){
+      var items = itemsFor(q.id, intr.id);
+      if(!items.length) return;
+      any=true;
+      var d = items.filter(function(x){return x.status==="done"}).length;
+      var blk = el("div",{class:"yint",style:"--ic:"+intr.color},[
+        el("div",{class:"lbl"},[ el("span",{class:"dot"}), el("span",{text:intr.name}),
+          el("span",{class:"n",text:d+"/"+items.length}) ])
+      ]);
+      var strip = el("div",{class:"sq-strip"});
+      items.forEach(function(x){ strip.appendChild(el("span",{class:"sq"+(x.status==="done"?" done":x.status==="prog"?" prog":""),title:x.title})); });
+      blk.appendChild(strip);
+      card.appendChild(blk);
+    });
+    if(!any) card.appendChild(el("div",{class:"none",text:"Nothing planned yet"}));
+    grid.appendChild(card);
+  });
+  main.appendChild(grid);
+  var s = statsAll();
+  main.appendChild(el("p",{class:"year-note",text: s.total? ("Across the year: "+s.total+" items, "+s.done+" done ("+s.pct+"%).") : "Nothing planned yet — open a quarter and add your first focus item."}));
+}
+
+/* rail: up next + stats + interests */
+function renderRail(){
+  var rail = document.getElementById("rail"); rail.innerHTML = "";
+
+  var warn = el("div",{class:"storage-warn"+(storageOK?"":" show"),
+    text:"Saving is unavailable in this browser context (storage blocked). Changes will be lost when you close the page."});
+  rail.appendChild(warn);
+
+  // Up next
+  var qid = state.view==="year" ? defaultQuarter() : state.view;
+  var q = state.quarters.find(function(x){return x.id===qid});
+  var un = el("div",{class:"rail-block"},[ el("h3",{text:"Up next in "+(q?q.label:"this quarter")}) ]);
+  var box = el("div",{class:"upnext"});
+  var next = upNext(qid,5);
+  if(next.length){
+    var ol = el("ol",{id:"upnextList"});
+    next.forEach(function(it){
+      var intr = state.interests.find(function(x){return x.id===it.interestId}) || {name:"?",color:"#999"};
+      ol.appendChild(el("li",{style:"--ic:"+intr.color},[
+        el("span",{class:"serif",text:it.title}),
+        it.status==="prog"? el("span",{class:"u-prog",text:" — already in progress"}):null,
+        el("br"), el("span",{class:"u-int",text:intr.name})
+      ]));
+    });
+    box.appendChild(ol);
+  } else {
+    box.appendChild(el("p",{class:"empty",id:"upnextList",
+      text: statsQuarter(qid).total ? "Everything in this quarter is done. Plan the next one?" : "Nothing planned in this quarter yet — add a focus item to see it here."}));
+  }
+  un.appendChild(box);
+  rail.appendChild(un);
+
+  // Progress
+  var s = statsAll();
+  var pb = el("div",{class:"rail-block"},[ el("h3",{text:"Progress"}) ]);
+  pb.appendChild(el("p",{class:"stat-line",id:"statAll",html:"<strong>"+s.pct+"%</strong> of <strong>"+s.total+"</strong> item"+(s.total===1?"":"s")+" done across the year"}));
+  rail.appendChild(pb);
+
+  // Interests
+  var ib = el("div",{class:"rail-block"},[ el("h3",{text:"Interests"}) ]);
+  state.interests.forEach(function(intr){
+    var key = "int:"+intr.id;
+    if(openForms[key]){ ib.appendChild(interestForm(intr,key)); return; }
+    var st = statsInterest(intr.id);
+    var row = el("div",{class:"int-row",style:"--ic:"+intr.color},[
+      el("span",{class:"dot"}),
+      el("div",{style:"flex:1;min-width:0"},[
+        el("button",{class:"name-btn",type:"button",text:intr.name,title:"Rename or recolor "+intr.name,
+          onclick:function(){ openForms[key]=true; render(); }}),
+        el("div",{class:"bar"},[ el("i",{style:"width:"+st.pct+"%"}) ])
+      ]),
+      el("span",{class:"pct",text: st.total? st.done+"/"+st.total+" · "+st.pct+"%" : "empty"})
+    ]);
+    ib.appendChild(row);
+  });
+  var addKey = "int:new";
+  if(openForms[addKey]) ib.appendChild(interestForm(null, addKey));
+  else ib.appendChild(el("button",{class:"add-int-btn",type:"button",text:"+ Add an interest",
+    onclick:function(){ openForms[addKey]=true; render(); }}));
+  rail.appendChild(ib);
+}
+
+function interestForm(intr, key){
+  var f = el("form",{class:"int-edit"});
+  var ni = el("input",{type:"text",value:intr?intr.name:"",placeholder:"Interest name",required:"required","aria-label":"Interest name"});
+  var ci = el("input",{type:"color",value:intr?intr.color:"#3E4C8A","aria-label":"Interest color"});
+  f.appendChild(el("div",{class:"row"},[ci,ni]));
+  var btns = el("div",{class:"btns"});
+  if(intr){
+    var cnt = state.items.filter(function(x){return x.interestId===intr.id}).length;
+    btns.appendChild(el("button",{class:"del",type:"button",text:"Delete interest",
+      onclick:function(){
+        var msg = "Delete \u201C"+intr.name+"\u201D"+(cnt? " and its "+cnt+" item"+(cnt===1?"":"s"):"")+"?";
+        if(confirm(msg)){ delete openForms[key]; deleteInterest(intr.id); }
+      }}));
+  }
+  btns.appendChild(el("button",{class:"cancel",type:"button",text:"Cancel",onclick:function(){ delete openForms[key]; render(); }}));
+  btns.appendChild(el("button",{class:"save",type:"submit",text: intr? "Save" : "Add"}));
+  f.appendChild(btns);
+  f.addEventListener("submit",function(ev){
+    ev.preventDefault(); delete openForms[key];
+    if(intr) updateInterest(intr.id,{name:ni.value,color:ci.value});
+    else addInterest(ni.value, ci.value);
+  });
+  setTimeout(function(){ try{ni.focus();}catch(e){} },0);
+  return f;
+}
+
+/* print view */
+function renderPrint(){
+  var p = document.getElementById("printView");
+  var s = statsAll();
+  var html = '<h1>Personal curriculum — year summary</h1>'
+    + '<div class="p-sub">'+s.total+' focus item'+(s.total===1?'':'s')+' · '+s.done+' done ('+s.pct+'%) · printed '+esc(new Date().toLocaleDateString())+'</div>';
+  state.quarters.forEach(function(q){
+    var qs = statsQuarter(q.id);
+    html += '<h2>'+esc(q.label)+ (qs.total? ' — '+qs.done+' of '+qs.total+' done' : '') +'</h2>';
+    var any=false;
+    state.interests.forEach(function(intr){
+      var items = itemsFor(q.id,intr.id);
+      if(!items.length) return; any=true;
+      html += '<h3>'+esc(intr.name)+'</h3><table>';
+      items.forEach(function(it){
+        html += '<tr><td class="st">'+esc(STATUS_LABEL[it.status])+'</td><td>'
+          + esc(it.title)
+          + (it.why? ' <span class="why">— '+esc(it.why)+'</span>':'')
+          + (it.resource? '<br><span class="res">'+esc(it.resource)+'</span>':'')
+          + '</td></tr>';
+      });
+      html += '</table>';
+    });
+    if(!any) html += '<p class="why">Nothing planned.</p>';
+  });
+  p.innerHTML = html;
+}
+
+document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
+
+/* expose for self-tests & power users */
+window.PCB = {
+  getState:function(){ return JSON.parse(JSON.stringify(state)); },
+  addInterest:addInterest, updateInterest:updateInterest, deleteInterest:deleteInterest,
+  addItem:addItem, updateItem:updateItem, deleteItem:deleteItem,
+  cycleStatus:cycleStatus, setQuarterLabel:setQuarterLabel, setView:setView,
+  statsAll:statsAll, statsInterest:statsInterest, statsQuarter:statsQuarter, upNext:upNext,
+  _storageOK:function(){ return storageOK; }
+};
+
+render();
+})();
+</script>
+</body>
+</html>
